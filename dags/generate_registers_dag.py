@@ -24,14 +24,18 @@ filesToGenerate = Variable.get('filesToGenerate', default_var=3)
 startDate = Variable.get('startDate', default_var = date.today().strftime("%Y-%m-%d"))
 
 def generateData():
+
     current_date = datetime.strptime(startDate, "%Y-%m-%d").date()
     for n in range(0,filesToGenerate):
+
         dateFolder = (current_date + timedelta(days=n)).strftime("%Y-%m-%d")
         random_ints = random.sample(range(1, 251), 100)
+        random_ints.sort()
         result=[]
+
         for i in random_ints:
             data = {
-                "Id": i,
+                "id": i,
                 "active": random.choice([True, False]),
                 "subscription": random.choice(["Basic", "Premium", "Ultimate","Sports","Entertainment","News","Movies","Family","Premium Plus","Custom"]),
                 "customer_first_name": fake.first_name(),
@@ -41,16 +45,23 @@ def generateData():
                 "end_date": str(fake.date_between(start_date="+30d", end_date="+365d"))
             }
             result.append(data)
+        
+        result = sorted(result, key=lambda d: d['id'])
+
         if os.path.exists(f'/opt/airflow/data/files/registers/date={dateFolder}'):
             os.system("rm -r " + f'/opt/airflow/data/files/registers/date={dateFolder}')
+
         os.makedirs(f'/opt/airflow/data/files/registers/date={dateFolder}')
+
         with open(f"/opt/airflow/data/files/registers/date={dateFolder}/data.json", "w") as f:
             json.dump(result, f, indent=4)
 
 with DAG('create_json_files', default_args=default_args, schedule_interval=None) as dag:
+
     createJSONData = PythonOperator(
         task_id='createJSONData',
         python_callable=generateData,
         dag=dag
     )
+
     createJSONData

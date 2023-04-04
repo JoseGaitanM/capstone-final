@@ -12,7 +12,7 @@ fake = Faker()
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
-    'start_date': datetime(2023, 3, 23),
+    'start_date': datetime(2023, 4, 4),
     'email_on_failure': False,
     'email_on_retry': False,
     'retries': 1,
@@ -36,7 +36,7 @@ def generateSuscriptions():
     print(df)
     pq.write_table(pa.Table.from_pandas(df), '/opt/airflow/data/files/subscription/subscriptions.parquet')
 
-with DAG('example_spark_dag', default_args=default_args, schedule_interval=None) as dag:
+with DAG('example_spark_dag', default_args=default_args, schedule_interval='*/10 * * * *',catchup=False) as dag:
     spark_job_task = SparkSubmitOperator(
         task_id='create_snapshoots',
         conn_id='spark_default',
