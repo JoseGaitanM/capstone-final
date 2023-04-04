@@ -16,19 +16,19 @@ spark = SparkSession.builder.master("local[1]") \
     .getOrCreate()
 spark.conf.set("mapreduce.fileoutputcommitter.marksuccessfuljobs", "false")
 
-##Case snapshoots exists
-if os.listdir("/opt/airflow/data/files/snapshoots"):
+##Case snapshots exists
+if os.listdir("/opt/airflow/data/files/snapshots"):
 
-  dfSnapshoots = spark.read.parquet("/opt/airflow/data/files/snapshoots")
-  dfSnapshoots.show(n=1000, truncate=False)
+  dfsnapshots = spark.read.parquet("/opt/airflow/data/files/snapshots")
+  dfsnapshots.show(n=1000, truncate=False)
 
-  datesSnapshoots = dfSnapshoots.select("date").distinct()
-  datesSnapshoots.show()
+  datessnapshots = dfsnapshots.select("date").distinct()
+  datessnapshots.show()
 
-  maxDateSnapshoots = datesSnapshoots.agg(max('date')).collect()[0][0]
-  print('Max date snapshoots: ',maxDateSnapshoots)
+  maxDatesnapshots = datessnapshots.agg(max('date')).collect()[0][0]
+  print('Max date snapshots: ',maxDatesnapshots)
 
-  snapshoot = spark.read.parquet(f'/opt/airflow/data/files/snapshoots/date={maxDateSnapshoots.strftime("%Y-%m-%d")}')
+  snapshoot = spark.read.parquet(f'/opt/airflow/data/files/snapshots/date={maxDatesnapshots.strftime("%Y-%m-%d")}')
   snapshoot.show(n=1000, truncate=False)
 
   if os.listdir("/opt/airflow/data/files/registers"):
@@ -42,10 +42,10 @@ if os.listdir("/opt/airflow/data/files/snapshoots"):
     distinct_dates = df1.select("date").distinct()
     distinct_dates.show()
 
-    DataData = maxDateSnapshoots + timedelta(days=1)
+    DataData = maxDatesnapshots + timedelta(days=1)
     print('Date for data json: ', DataData)
 
-    if (os.path.isdir(f'/opt/airflow/data/files/registers/date={DataData.strftime("%Y-%m-%d")}') and DataData > maxDateSnapshoots):
+    if (os.path.isdir(f'/opt/airflow/data/files/registers/date={DataData.strftime("%Y-%m-%d")}') and DataData > maxDatesnapshots):
 
       data = spark.read.option("multiline","true").json(f'/opt/airflow/data/files/registers/date={DataData.strftime("%Y-%m-%d")}')
 
@@ -55,10 +55,10 @@ if os.listdir("/opt/airflow/data/files/snapshoots"):
       union = joined.unionByName(snapshoot).dropDuplicates(['id']).orderBy('id')
       union.show(n=1000, truncate=False) 
       
-      union.write.mode("overwrite").parquet(f'/opt/airflow/data/files/snapshoots/date={DataData.strftime("%Y-%m-%d")}')
+      union.write.mode("overwrite").parquet(f'/opt/airflow/data/files/snapshots/date={DataData.strftime("%Y-%m-%d")}')
 
     else:
-      print('Snapshoots Up to date')
+      print('snapshots Up to date')
 
   else:
     print('ERROR: No data .json')
@@ -84,4 +84,4 @@ else:
 
     joined = data.join(df2, ['subscription'])
     joined.show(n=1000, truncate=False)
-    joined.write.mode("overwrite").parquet(f'/opt/airflow/data/files/snapshoots/date={minDateData.strftime("%Y-%m-%d")}')
+    joined.write.mode("overwrite").parquet(f'/opt/airflow/data/files/snapshots/date={minDateData.strftime("%Y-%m-%d")}')
