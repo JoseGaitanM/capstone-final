@@ -1,9 +1,10 @@
-
 from pyspark.sql import SparkSession
 from datetime import date, timedelta
 from pyspark.sql.types import StructType, StructField, StringType, LongType, MapType
-from pyspark.sql.functions import max, min
+from pyspark.sql.functions import max, min, col, lit, row_number
 import os
+from pyspark.sql.window import Window
+from pyspark.sql.functions import input_file_name, regexp_extract
 
 schemaSubscriptions = StructType([
   StructField("subscription", StringType(), False),
@@ -30,6 +31,7 @@ if os.listdir("/opt/airflow/data/files/snapshots"):
 
   snapshoot = spark.read.parquet(f'/opt/airflow/data/files/snapshots/date={maxDatesnapshots.strftime("%Y-%m-%d")}')
   snapshoot.show(n=1000, truncate=False)
+  snapshoot.drop('date')
 
   if os.listdir("/opt/airflow/data/files/registers"):
 
@@ -42,20 +44,31 @@ if os.listdir("/opt/airflow/data/files/snapshots"):
     distinct_dates = df1.select("date").distinct()
     distinct_dates.show()
 
-    DataData = maxDatesnapshots + timedelta(days=1)
-    print('Date for data json: ', DataData)
+    dateData = distinct_dates.agg(max('date')).collect()[0][0]
+    print('Date data json: ', dateData)
 
-    if (os.path.isdir(f'/opt/airflow/data/files/registers/date={DataData.strftime("%Y-%m-%d")}') and DataData > maxDatesnapshots):
+    if (dateData > maxDatesnapshots):
 
-      data = spark.read.option("multiline","true").json(f'/opt/airflow/data/files/registers/date={DataData.strftime("%Y-%m-%d")}')
+      data = spark.read.option("multiline","true").json(f'/opt/airflow/data/files/registers')
+      data[data['date'] > maxDatesnapshots]
+      data.show(n=1000, truncate=False)
 
       joined = data.join(df2, ['subscription'])
       joined.show(n=1000, truncate=False)
 
-      union = joined.unionByName(snapshoot).dropDuplicates(['id']).orderBy('id')
-      union.show(n=1000, truncate=False) 
+      joined.printSchema()
+      snapshoot.printSchema()
+
+      union = joined.union(snapshoot)
+      union.show(n=1000, truncate=False)
+
+      latestData = (joined
+                     .withColumn("rowNumber", row_number().over(Window.partitionBy(col("id")).orderBy(col("date").desc())))
+                     .where(col("rowNumber") == lit(1))
+                     .drop("rowNumber"))
       
-      union.write.mode("overwrite").parquet(f'/opt/airflow/data/files/snapshots/date={DataData.strftime("%Y-%m-%d")}')
+      latestData.show(n=1000, truncate=False)
+      latestData.write.mode("overwrite").parquet(f'/opt/airflow/data/files/snapshots/date={dateData.strftime("%Y-%m-%d")}')
 
     else:
       print('snapshots Up to date')
@@ -64,9 +77,9 @@ if os.listdir("/opt/airflow/data/files/snapshots"):
     print('ERROR: No data .json')
 
 else:
-
+   
    if os.listdir("/opt/airflow/data/files/registers"):
-
+    
     df2 = spark.read.parquet("/opt/airflow/data/files/subscriptions")
     df2.show(n=1000, truncate=False)
 
@@ -76,12 +89,16 @@ else:
     distinct_dates = df1.select("date").distinct()
     distinct_dates.show()
 
-    minDateData = distinct_dates.agg(min('date')).collect()[0][0]
-    print('Min date data json: ', minDateData)
+    dateData = distinct_dates.agg(max('date')).collect()[0][0]
+    print('Date data json: ', dateData)
 
-    data = spark.read.option("multiline","true").json(f'/opt/airflow/data/files/registers/date={minDateData.strftime("%Y-%m-%d")}')
-    data.show(n=1000, truncate=False)
-
-    joined = data.join(df2, ['subscription'])
+    joined = df1.join(df2, ['subscription'])
     joined.show(n=1000, truncate=False)
-    joined.write.mode("overwrite").parquet(f'/opt/airflow/data/files/snapshots/date={minDateData.strftime("%Y-%m-%d")}')
+
+    latestData = (joined
+                     .withColumn("rowNumber", row_number().over(Window.partitionBy(col("id")).orderBy(col("date").desc())))
+                     .where(col("rowNumber") == lit(1))
+                     .drop("rowNumber"))
+    
+    latestData.show(n=1000, truncate=False)
+    latestData.write.mode("overwrite").parquet(f'/opt/airflow/data/files/snapshots/date={dateData.strftime("%Y-%m-%d")}/')
