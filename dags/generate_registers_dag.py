@@ -26,14 +26,15 @@ startDate = Variable.get('startDate', default_var = date.today().strftime("%Y-%m
 def generateData():
 
     current_date = datetime.strptime(startDate, "%Y-%m-%d").date()
+
     for n in range(0,filesToGenerate):
 
         dateFolder = (current_date + timedelta(days=n)).strftime("%Y-%m-%d")
         random_ints = random.sample(range(1, 251), 100)
-        random_ints.sort()
         result=[]
 
         for i in random_ints:
+
             data = {
                 "id": i,
                 "active": random.choice([True, False]),
@@ -44,13 +45,13 @@ def generateData():
                 "start_date": str(fake.date_between(start_date="-30d", end_date="+30d")),
                 "end_date": str(fake.date_between(start_date="+30d", end_date="+365d"))
             }
+            
             result.append(data)
         
-        result = sorted(result, key=lambda d: d['id'])
+        result = sorted(result, key=lambda x: x["id"])
 
         if os.path.exists(f'/opt/airflow/data/files/registers/date={dateFolder}'):
             os.system("rm -r " + f'/opt/airflow/data/files/registers/date={dateFolder}')
-
         os.makedirs(f'/opt/airflow/data/files/registers/date={dateFolder}')
 
         with open(f"/opt/airflow/data/files/registers/date={dateFolder}/data.json", "w") as f:
