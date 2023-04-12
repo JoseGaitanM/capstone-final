@@ -1,17 +1,17 @@
 {
     "name": "PySpark Testing",
-    "image": "spark-air",
+    "image": "airflow-spark",
     "extensions": ["ms-python.python"],
-    "runArgs": ["--env", "DISPLAY=${DISPLAY}", "--env", "QT_SCALE_FACTOR=${QT_SCALE_FACTOR}", "--env", "QT_AUTO_SCREEN_SCALE_FACTOR=1", "--env", "QT_SCREEN_SCALE_FACTORS=${QT_SCALE_FACTOR}"],
     "forwardPorts": [8882],
-    "containerEnv": {
-        "DISPLAY": "${DISPLAY}",
-        "QT_SCALE_FACTOR": "${QT_SCALE_FACTOR}",
-        "QT_AUTO_SCREEN_SCALE_FACTOR": "1",
-        "QT_SCREEN_SCALE_FACTORS": "${QT_SCALE_FACTOR}"
-    },
-    "remoteUser": "root",
+    "remoteUser": "airflow",
     "settings": {
         "python.pythonPath": "/usr/local/bin/python"
-    }
+    },
+    "mounts": [
+        {
+            "source": "${localWorkspaceFolder}/data",
+            "target": "/opt/airflow/data",
+            "type": "bind"
+        }
+    ]
 }

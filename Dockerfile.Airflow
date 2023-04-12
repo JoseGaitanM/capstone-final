@@ -28,7 +28,3 @@ RUN pip install pandas
 RUN pip install pytest
 
 RUN pip install pytest-spark
-
-COPY ./test/test_capstone.py /app/
-
-WORKDIR /app

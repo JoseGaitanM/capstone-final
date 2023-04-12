@@ -1,24 +1,25 @@
 import pytest
 from pyspark.sql import SparkSession
+import os 
 
 @pytest.fixture(scope="session")
+
 def spark_session():
-    # create a SparkSession object
-    spark = SparkSession.builder.appName("pytest").getOrCreate()
-    yield spark
-    spark.stop()
+    spark = SparkSession.builder.master("local[1]") \
+    .appName("Create snapshot") \
+    .getOrCreate()
+    spark.conf.set("mapreduce.fileoutputcommitter.marksuccessfuljobs", "false")
+
+    return spark
 
 def test_transform_parquet(spark_session):
     # read the input parquet file
-    input_df = spark_session.read.parquet("path/to/input/parquet")
+    # get the content of the current directory
+    content = os.listdir()
 
-    # apply some transformations
-    output_df = input_df.filter(input_df["age"] >= 18)
+    # print the content of the directory
+    print(content)
 
-    # read the expected output parquet file
-    expected_df = spark_session.read.parquet("path/to/expected/parquet")
+    input_df = spark_session.read.parquet("/opt/airflow/data")
 
-    # check that the output dataframe has the expected schema and data
-    assert output_df.schema == expected_df.schema
-    assert output_df.count() == expected_df.count()
-    assert output_df.collect() == expected_df.collect()
+    assert input_df.count() == 10
