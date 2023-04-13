@@ -64,8 +64,7 @@ def createNewSnapshot(data,dateData):
   
   result.show(n=1000, truncate=False)
   result.write.mode("overwrite").parquet(f'/opt/airflow/data/files/snapshots/date={dateData.strftime("%Y-%m-%d")}')
-
-  print('###################longitud total',result.count())
+  
   return result
 
 def enrichData(registers,subscription):
