@@ -4,12 +4,7 @@ from pyspark.sql.functions import max, col, lit, row_number
 import os
 from pyspark.sql.window import Window
 
-spark = SparkSession.builder.master("local[1]") \
-    .appName("Create snapshot") \
-    .getOrCreate()
-spark.conf.set("mapreduce.fileoutputcommitter.marksuccessfuljobs", "false")
-
-def getMaxDateSnapshots(path):
+def getMaxDateSnapshots(path,spark):
   dfsnapshots = spark.read.parquet(path)
   dfsnapshots.show(n=1000, truncate=False)
 
@@ -21,21 +16,21 @@ def getMaxDateSnapshots(path):
 
   return maxDatesnapshots
 
-def readMaxDateSnapshoots(path,maxDatesnapshots):
+def readMaxDateSnapshoots(path,maxDatesnapshots,spark):
   snapshoot = spark.read.parquet(f'{path}/date={maxDatesnapshots.strftime("%Y-%m-%d")}')
   snapshoot.show(n=1000, truncate=False)
   snapshoot.drop('date')
 
   return snapshoot
 
-def getSubscriptions(path):
+def getSubscriptions(path,spark):
   subscriptions = spark.read.parquet(path)
   subscriptions.show(n=1000, truncate=False)
 
   return subscriptions
 
 
-def getMaxDateRegisters(path):
+def getMaxDateRegisters(path,spark):
   registers = spark.read.option("multiline","true").json(path)
   registers.show(n=1000, truncate=False)
 
@@ -47,7 +42,7 @@ def getMaxDateRegisters(path):
 
   return (dateData, registers)
 
-def enrichNewRegisters(subscriptions):
+def enrichNewRegisters(subscriptions,maxDatesnapshots,spark):
   registers = spark.read.option("multiline","true").json(f'/opt/airflow/data/files/registers')
   registers[registers['date'] > maxDatesnapshots]
   registers.show(n=1000, truncate=False)
@@ -55,22 +50,23 @@ def enrichNewRegisters(subscriptions):
   joined = registers.join(subscriptions, ['subscription'])
   joined.show(n=1000, truncate=False)
 
-  joined.printSchema()
-  snapshoot.printSchema()
-
   return joined
 
+def joinData(snapshots,joined):
+   return snapshots.union(joined)
+   
 
-def createNewSnapshot(joined,dateData):
-  latestData = (joined
+def createNewSnapshot(data,dateData):
+  result = (data
                 .withColumn("rowNumber", row_number().over(Window.partitionBy(col("id")).orderBy(col("date").desc())))
                 .where(col("rowNumber") == lit(1))
                 .drop("rowNumber"))
   
-  latestData.show(n=1000, truncate=False)
-  latestData.write.mode("overwrite").parquet(f'/opt/airflow/data/files/snapshots/date={dateData.strftime("%Y-%m-%d")}')
+  result.show(n=1000, truncate=False)
+  result.write.mode("overwrite").parquet(f'/opt/airflow/data/files/snapshots/date={dateData.strftime("%Y-%m-%d")}')
 
-  return latestData
+  print('###################longitud total',result.count())
+  return result
 
 def enrichData(registers,subscription):
 
@@ -79,51 +75,62 @@ def enrichData(registers,subscription):
 
   return joined
 
-snapshotsPath = "/opt/airflow/data/files/snapshots"
-subscriptionsPath = "/opt/airflow/data/files/subscriptions"
-registersPath = "/opt/airflow/data/files/registers"
+def main():
+    spark = SparkSession.builder.master("local[1]") \
+        .appName("Create snapshot") \
+        .getOrCreate()
+    spark.conf.set("mapreduce.fileoutputcommitter.marksuccessfuljobs", "false")
+
+    snapshotsPath = "/opt/airflow/data/files/snapshots"
+    subscriptionsPath = "/opt/airflow/data/files/subscriptions"
+    registersPath = "/opt/airflow/data/files/registers"
+
+    if os.listdir("/opt/airflow/data/files/snapshots"):
+
+        ###get max date snapshots
+        maxDatesnapshots = getMaxDateSnapshots(snapshotsPath,spark)
+
+        ###read max snapshots
+        snapshoot = readMaxDateSnapshoots(snapshotsPath,maxDatesnapshots,spark)
+
+        if os.listdir("/opt/airflow/data/files/registers"):
+
+            #####get subscriptions
+            subscriptions = getSubscriptions(subscriptionsPath,spark)
+
+            ###get max date registers
+            dateData,_ = getMaxDateRegisters(registersPath,spark)
+
+            if (dateData > maxDatesnapshots):
+                ###enrich new registers
+                joined = enrichNewRegisters(subscriptions,maxDatesnapshots,spark)
+
+                ###Make union past snapshoot with new enriched registers
+                latestData = joinData(snapshoot,joined)
 
 
-if os.listdir("/opt/airflow/data/files/snapshots"):
+                ###create new snapshoot
+                createNewSnapshot(latestData,dateData)
+            else:
+                print('snapshots Up to date')
 
-  ###get max date snapshots
-  maxDatesnapshots = getMaxDateSnapshots(snapshotsPath)
+        else:
+            print('ERROR: No data .json')
 
-  ###read max snapshots
-  snapshoot = readMaxDateSnapshoots(snapshotsPath,maxDatesnapshots)
-
-  if os.listdir("/opt/airflow/data/files/registers"):
-
-    #####get subscriptions
-    subscriptions = getSubscriptions(subscriptionsPath)
-
-    ###get max date registers
-    dateData,_ = getMaxDateRegisters(registersPath)
-
-    if (dateData > maxDatesnapshots):
-      ###enrich new registers
-      joined = enrichNewRegisters(subscriptions)
-
-      ###create new snapshoot
-      latestData = createNewSnapshot(joined,dateData)
     else:
-      print('snapshots Up to date')
+        if os.listdir("/opt/airflow/data/files/registers"):
 
-  else:
-    print('ERROR: No data .json')
+            #####get subscriptions
+            subscriptions = getSubscriptions(subscriptionsPath,spark)
 
-else:
-   
-   if os.listdir("/opt/airflow/data/files/registers"):
+            ###get max date registers
+            dateData,registers = getMaxDateRegisters(registersPath,spark)
 
-    #####get subscriptions
-    subscriptions = getSubscriptions(subscriptionsPath)
+            ##enrich data
+            joined = enrichData(registers,subscriptions)
 
-    ###get max date registers
-    dateData,registers = getMaxDateRegisters(registersPath)
+            ###create new snapshoot
+            createNewSnapshot(joined,dateData)
 
-    ##enrich data
-    joined = enrichData(registers,subscriptions)
-
-    ###create new snapshoot
-    latestData = createNewSnapshot(joined,dateData)
+if __name__ == "__main__":
+    main()
