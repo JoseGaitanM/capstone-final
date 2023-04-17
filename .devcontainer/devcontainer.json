@@ -10,7 +10,7 @@
     "mounts": [
         {
             "source": "${localWorkspaceFolder}/data",
-            "target": "/opt/airflow/data",
+            "target": "/opt/airflow/data ",
             "type": "bind"
         }
     ]
