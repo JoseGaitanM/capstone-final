@@ -1,0 +1,11 @@
+{"id":1,"active":false,"subscription":"Basic","customer_first_name":"John","customer_last_name":"Doe","cost":50,"start_date":"2023-04-01","end_date":"2023-09-30"}
+{"id":2,"active":false,"subscription":"Premium","customer_first_name":"Jane","customer_last_name":"Smith","cost":75,"start_date":"2023-03-15","end_date":"2023-06-30"}
+{"id":3,"active":false,"subscription":"Family","customer_first_name":"Arthur","customer_last_name":"Hutchinson","cost":53,"start_date":"2023-03-25","end_date":"2023-06-01"}
+{"id":4,"active":false,"subscription":"Family","customer_first_name":"Sara","customer_last_name":"Rodriguez","cost":89,"start_date":"2023-04-15","end_date":"2023-09-25"}
+{"id":9,"active":false,"subscription":"Premium","customer_first_name":"Jill","customer_last_name":"Rivers","cost":64,"start_date":"2023-04-07","end_date":"2023-09-09"}
+{"id":11,"active":false,"subscription":"Basic","customer_first_name":"Chelsea","customer_last_name":"Logan","cost":67,"start_date":"2023-03-16","end_date":"2023-12-07"}
+{"id":13,"active":false,"subscription":"News","customer_first_name":"Danielle","customer_last_name":"Jackson","cost":66,"start_date":"2023-04-03","end_date":"2024-03-25"}
+{"id":23,"active":false,"subscription":"Ultimate","customer_first_name":"Lori","customer_last_name":"Sanchez","cost":69,"start_date":"2023-04-20","end_date":"2023-05-08"}
+{"id":26,"active":true,"subscription":"Family","customer_first_name":"James","customer_last_name":"Hall","cost":76,"start_date":"2023-05-07","end_date":"2023-10-26"}
+{"id":29,"active":true,"subscription":"Movies","customer_first_name":"Kyle","customer_last_name":"Crawford","cost":51,"start_date":"2023-03-14","end_date":"2023-05-22"}
+{"id":36,"active":true,"subscription":"Custom","customer_first_name":"Jacob","customer_last_name":"Carter","cost":92,"start_date":"2023-04-25","end_date":"2024-01-28"}

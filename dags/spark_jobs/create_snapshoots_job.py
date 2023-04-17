@@ -55,8 +55,8 @@ def getMaxDateRegisters(path,spark):
 
   return (dateData, registers)
 
-def enrichNewRegisters(subscriptions,maxDatesnapshots,spark):
-  registers = spark.read.option("multiline","true").json(f'/opt/airflow/data/files/registers')
+def enrichNewRegisters(subscriptions,maxDatesnapshots,spark,path):
+  registers = spark.read.option("multiline","true").json(path)
   registers[registers['date'] > maxDatesnapshots]
   registers.show(n=1000, truncate=False)
 
@@ -115,7 +115,7 @@ def main():
 
             if (dateData > maxDatesnapshots):
                 ###enrich new registers
-                joined = enrichNewRegisters(subscriptions,maxDatesnapshots,spark)
+                joined = enrichNewRegisters(subscriptions,maxDatesnapshots,spark,registersPath)
 
                 ###Make union past snapshoot with new enriched registers
                 latestData = joinData(snapshoot,joined)
