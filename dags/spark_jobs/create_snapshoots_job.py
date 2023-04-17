@@ -3,6 +3,19 @@ from datetime import date, timedelta
 from pyspark.sql.functions import max, col, lit, row_number
 import os
 from pyspark.sql.window import Window
+from pyspark.sql.types import StructType, StructField, IntegerType, BooleanType, StringType, DateType, LongType, MapType
+
+SCHEMA_REGISTERS_READ = StructType([
+        StructField("id", IntegerType(), True),
+        StructField("active", BooleanType(), True),
+        StructField("subscription", StringType(), True),
+        StructField("customer_first_name", StringType(), True),
+        StructField("customer_last_name", StringType(), True),
+        StructField("cost", IntegerType(), True),
+        StructField("start_date", DateType(), True),
+        StructField("end_date", DateType(), True),
+        StructField("date", DateType(), True)
+    ])
 
 def getMaxDateSnapshots(path,spark):
   dfsnapshots = spark.read.parquet(path)
@@ -31,7 +44,7 @@ def getSubscriptions(path,spark):
 
 
 def getMaxDateRegisters(path,spark):
-  registers = spark.read.option("multiline","true").json(path)
+  registers = spark.read.schema(SCHEMA_REGISTERS_READ).option("multiline","true").json(path)
   registers.show(n=1000, truncate=False)
 
   distinct_dates = registers.select("date").distinct()
