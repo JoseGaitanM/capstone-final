@@ -4,6 +4,7 @@ from pyspark.sql.functions import max, col, lit, row_number
 import os
 from pyspark.sql.window import Window
 from pyspark.sql.types import StructType, StructField, IntegerType, BooleanType, StringType, DateType, LongType, MapType
+from pyspark.sql.functions import col
 
 SCHEMA_REGISTERS_READ = StructType([
         StructField("id", IntegerType(), True),
@@ -16,6 +17,20 @@ SCHEMA_REGISTERS_READ = StructType([
         StructField("end_date", DateType(), True),
         StructField("date", DateType(), True)
     ])
+
+SCHEMA_REGISTERS_ENRICHED = StructType([
+    StructField("id", IntegerType(), True),
+    StructField("active", BooleanType(), True),
+    StructField("subscription", StringType(), True),
+    StructField("customer_first_name", StringType(), True),
+    StructField("customer_last_name", StringType(), True),
+    StructField("cost", IntegerType(), True),
+    StructField("start_date", DateType(), True),
+    StructField("end_date", DateType(), True),
+    StructField("numberOfChannels", LongType(), True),
+    StructField("extras", MapType(StringType(), StringType(), valueContainsNull = True), nullable = True),
+    StructField("date", DateType(), True)
+])
 
 def getMaxDateSnapshots(path,spark):
   dfsnapshots = spark.read.parquet(path)
@@ -56,21 +71,19 @@ def getMaxDateRegisters(path,spark):
   return (dateData, registers)
 
 def enrichNewRegisters(subscriptions,maxDatesnapshots,spark,path):
-  registers = spark.read.schema(SCHEMA_REGISTERS_READ).json(path)
-  registers.show(n=1000, truncate=False)
-
-  registers[registers['date'] > maxDatesnapshots]
-  registers.show(n=1000, truncate=False)
+  registers = spark.read.json(path)
+  registers = registers.filter(col('date') > maxDatesnapshots)
 
   joined = registers.join(subscriptions, ['subscription'])
-  joined.show(n=1000, truncate=False)
+  joined = joined.select('id',"active","subscription","customer_first_name","customer_last_name","cost","start_date","end_date","numberOfChannels","extras","date").orderBy("id")
 
   return joined
 
 def joinData(snapshots,joined):
-   return snapshots.union(joined)
-   
+  joined = joined.drop('date')
 
+  return snapshots.union(joined)
+  
 def createNewSnapshot(data,dateData):
   result = (data
                 .withColumn("rowNumber", row_number().over(Window.partitionBy(col("id")).orderBy(col("date").desc())))
