@@ -44,7 +44,7 @@ def getSubscriptions(path,spark):
 
 
 def getMaxDateRegisters(path,spark):
-  registers = spark.read.schema(SCHEMA_REGISTERS_READ).option("multiline","true").json(path)
+  registers = spark.read.schema(SCHEMA_REGISTERS_READ).json(path)
   registers.show(n=1000, truncate=False)
 
   distinct_dates = registers.select("date").distinct()
@@ -56,7 +56,9 @@ def getMaxDateRegisters(path,spark):
   return (dateData, registers)
 
 def enrichNewRegisters(subscriptions,maxDatesnapshots,spark,path):
-  registers = spark.read.option("multiline","true").json(path)
+  registers = spark.read.schema(SCHEMA_REGISTERS_READ).json(path)
+  registers.show(n=1000, truncate=False)
+
   registers[registers['date'] > maxDatesnapshots]
   registers.show(n=1000, truncate=False)
 
