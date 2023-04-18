@@ -223,19 +223,9 @@ def test_snapshot2(spark_session,data_schema_registers):
 
 #############################ENRICHED DATA
 @pytest.fixture(scope="session")
-def test_enriched_registers_1(spark_session,data_schema_registers):
+def test_enriched_registers(spark_session,data_schema_registers):
     rows = [
-        {"subscription":"Basic","id":1,"active":False,"customer_first_name":"John","customer_last_name":"Doe","cost":50,"start_date":"2023-04-01","end_date":"2023-09-30","numberOfChannels":50,"extras":{}},
-        {"subscription":"Basic","id":11,"active":False,"customer_first_name":"Chelsea","customer_last_name":"Logan","cost":67,"start_date":"2023-03-16","end_date":"2023-12-07","numberOfChannels":50,"extras":{}},
-        {"subscription":"Custom","id":36,"active":True,"customer_first_name":"Jacob","customer_last_name":"Carter","cost":92,"start_date":"2023-04-25","end_date":"2024-01-28","numberOfChannels":150,"extras":{}},
-        {"subscription":"Family","id":3,"active":False,"customer_first_name":"Arthur","customer_last_name":"Hutchinson","cost":53,"start_date":"2023-03-25","end_date":"2023-06-01","numberOfChannels":75,"extras":{"DVR":"3","Kids Package":"5"}},
-        {"subscription":"Family","id":4,"active":False,"customer_first_name":"Sara","customer_last_name":"Rodriguez","cost":89,"start_date":"2023-04-15","end_date":"2023-09-25","numberOfChannels":75,"extras":{"DVR":"3","Kids Package":"5"}},
-        {"subscription":"Family","id":26,"active":True,"customer_first_name":"James","customer_last_name":"Hall","cost":76,"start_date":"2023-05-07","end_date":"2023-10-26","numberOfChannels":75,"extras":{"DVR":"3","Kids Package":"5"}},
-        {"subscription":"Movies","id":29,"active":True,"customer_first_name":"Kyle","customer_last_name":"Crawford","cost":51,"start_date":"2023-03-14","end_date":"2023-05-22","numberOfChannels":100,"extras":{"Cinemax":"4","HBO":"5","Showtime":"3"}},
-        {"subscription":"News","id":13,"active":False,"customer_first_name":"Danielle","customer_last_name":"Jackson","cost":66,"start_date":"2023-04-03","end_date":"2024-03-25","numberOfChannels":50,"extras":{"CNN":"5","Fox News":"3"}},
-        {"subscription":"Premium","id":2,"active":False,"customer_first_name":"Jane","customer_last_name":"Smith","cost":75,"start_date":"2023-03-15","end_date":"2023-06-30","numberOfChannels":100,"extras":{"HBO":"4","Cinemax":"3"}},
-        {"subscription":"Premium","id":9,"active":False,"customer_first_name":"Jill","customer_last_name":"Rivers","cost":64,"start_date":"2023-04-07","end_date":"2023-09-09","numberOfChannels":100,"extras":{"HBO":"4","Cinemax":"3"}},
-        {"subscription":"Ultimate","id":23,"active":False,"customer_first_name":"Lori","customer_last_name":"Sanchez","cost":69,"start_date":"2023-04-20","end_date":"2023-05-08","numberOfChannels":200,"extras":{"Cinemax":"4","HBO":"5","Showtime":"3","Sports Package":"2"}}
+
     ]
 
     rows = convertRows(rows)
@@ -285,9 +275,9 @@ def test_registers_dir(test_dir,test_registers_1,test_registers_2,test_registers
     tmpdir = test_dir
     temp_dir = f"{tmpdir}/registers"
 
-    test_registers_1.coalesce(1).write.mode('overwrite').format('json').save(temp_dir+'/date=2023-04-08')
-    test_registers_2.coalesce(1).write.mode('overwrite').format('json').save(temp_dir+'/date=2023-04-09')
-    test_registers_3.coalesce(1).write.mode('overwrite').format('json').save(temp_dir+'/date=2023-04-10')
+    test_registers_1.write.mode('overwrite').json(temp_dir+'/date=2023-04-08')
+    test_registers_2.write.mode('overwrite').json(temp_dir+'/date=2023-04-09')
+    test_registers_3.write.mode('overwrite').json(temp_dir+'/date=2023-04-10')
 
     return temp_dir
 
@@ -324,6 +314,10 @@ def test_getMaxDateRegisters(spark_session, test_registers_dir, data_schema_retr
     assert dateData == datetime.strptime('2023-04-10', '%Y-%m-%d').date()
     assert registers.schema == data_schema_retrieve_registers
     
+def test_enrichNewRegisters(test_subscriptions,spark_session,test_registers_dir):
+    enrichedData = enrichNewRegisters(test_subscriptions,datetime.strptime('2023-04-09', '%Y-%m-%d').date(),spark_session,test_registers_dir)
+
+    enrichedData.coalesce(1).write.mode('overwrite').format('json').save('data/files/test3')
 
 
 def test_getSubscriptions2(spark_session,test_registers_1,test_subscriptions):
@@ -334,4 +328,5 @@ def test_getSubscriptions2(spark_session,test_registers_1,test_subscriptions):
     joined.coalesce(1).write.mode('overwrite').mode('overwrite').format('json').save('data/files/test2')
     
     pass
+
 
