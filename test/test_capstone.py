@@ -363,7 +363,8 @@ def test_getSubscriptions(spark_session, test_subscriptions_dir,test_subscriptio
     
 def test_getMaxDateRegisters(spark_session, test_registers_dir, data_schema_retrieve_registers):
     dateData, registers = getMaxDateRegisters(test_registers_dir,spark_session)
-
+    print(registers.schema )
+    print(data_schema_retrieve_registers)
     assert dateData == datetime.strptime('2023-04-10', '%Y-%m-%d').date()
     assert registers.schema == data_schema_retrieve_registers
     

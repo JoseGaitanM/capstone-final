@@ -33,7 +33,7 @@ SCHEMA_REGISTERS_ENRICHED = StructType([
 ])
 
 def getMaxDateSnapshots(path,spark):
-  dfsnapshots = spark.read.parquet(path)
+  dfsnapshots = spark.read.schema(SCHEMA_REGISTERS_ENRICHED).parquet(path)
   dfsnapshots.show(n=1000, truncate=False)
 
   datessnapshots = dfsnapshots.select("date").distinct()
@@ -45,7 +45,7 @@ def getMaxDateSnapshots(path,spark):
   return maxDatesnapshots
 
 def readMaxDateSnapshoots(path,maxDatesnapshots,spark):
-  snapshoot = spark.read.parquet(f'{path}/date={maxDatesnapshots.strftime("%Y-%m-%d")}')
+  snapshoot = spark.read.schema(SCHEMA_REGISTERS_ENRICHED).parquet(f'{path}/date={maxDatesnapshots.strftime("%Y-%m-%d")}')
   snapshoot.show()
   return snapshoot
 
@@ -57,7 +57,7 @@ def getSubscriptions(path,spark):
 
 
 def getMaxDateRegisters(path,spark):
-  registers = spark.read.json(path)
+  registers = spark.read.schema(SCHEMA_REGISTERS_READ).json(path)
   registers.show(n=1000, truncate=False)
 
   distinct_dates = registers.select("date").distinct()
@@ -69,12 +69,15 @@ def getMaxDateRegisters(path,spark):
   return (dateData, registers)
 
 def enrichNewRegisters(subscriptions,maxDatesnapshots,spark,path):
-  registers = spark.read.json(path)
+  registers = spark.read.schema(SCHEMA_REGISTERS_READ).json(path)
   registers = registers.filter(col('date') > maxDatesnapshots)
 
   joined = registers.join(subscriptions, ['subscription'])
   joined = joined.select('id',"active","subscription","customer_first_name","customer_last_name","cost","start_date","end_date","numberOfChannels","extras","date").orderBy("id")
   joined.show()
+
+  print(registers.schema)
+  print(joined.schema)
 
   return joined
 
