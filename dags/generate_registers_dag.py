@@ -55,7 +55,9 @@ def generateData():
         os.makedirs(f'/opt/airflow/data/files/registers/date={dateFolder}')
 
         with open(f"/opt/airflow/data/files/registers/date={dateFolder}/data.json", "w") as f:
-            json.dump(result, f, indent=4)
+            for obj in result:
+                json.dump(obj, f)
+                f.write('\n')
 
 with DAG('create_json_files', default_args=default_args, schedule_interval=None) as dag:
 

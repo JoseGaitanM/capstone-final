@@ -2,7 +2,7 @@ import pytest
 from pyspark.sql import SparkSession
 import os
 import sys
-from pyspark.sql.types import StructType, StructField, IntegerType, BooleanType, StringType, DateType, LongType, MapType
+from pyspark.sql.types import StructType, StructField, LongType, BooleanType, StringType, DateType, LongType, MapType
 import tempfile
 from datetime import datetime
 
@@ -12,6 +12,7 @@ sys.path.append(parent_dir)
 
 from dags.spark_jobs.create_snapshoots_job import getMaxDateSnapshots, readMaxDateSnapshoots, getSubscriptions, getMaxDateRegisters, enrichNewRegisters, joinData, createNewSnapshot, enrichData
 import pyspark.sql.functions as F
+from pyspark.sql.functions import lit
 
 def convertRows(rows):
     converted_rows = []
@@ -40,12 +41,12 @@ def spark_session():
 @pytest.fixture(scope="session")
 def data_schema_registers():
     schema = StructType([
-        StructField("id", IntegerType(), True),
+        StructField("id", LongType(), True),
         StructField("active", BooleanType(), True),
         StructField("subscription", StringType(), True),
         StructField("customer_first_name", StringType(), True),
         StructField("customer_last_name", StringType(), True),
-        StructField("cost", IntegerType(), True),
+        StructField("cost", LongType(), True),
         StructField("start_date", DateType(), True),
         StructField("end_date", DateType(), True)
     ])
@@ -55,12 +56,12 @@ def data_schema_registers():
 @pytest.fixture(scope="session")
 def data_schema_retrieve_registers():
     schema = StructType([
-        StructField("id", IntegerType(), True),
+        StructField("id", LongType(), True),
         StructField("active", BooleanType(), True),
         StructField("subscription", StringType(), True),
         StructField("customer_first_name", StringType(), True),
         StructField("customer_last_name", StringType(), True),
-        StructField("cost", IntegerType(), True),
+        StructField("cost", LongType(), True),
         StructField("start_date", DateType(), True),
         StructField("end_date", DateType(), True),
         StructField("date", DateType(), True)
@@ -73,15 +74,15 @@ def data_schema_retrieve_registers():
 @pytest.fixture(scope="session")
 def enriched_data_schema_registers():
     schema = StructType([
-        StructField("id", IntegerType(), True),
+        StructField("id", LongType(), True),
         StructField("active", BooleanType(), True),
         StructField("subscription", StringType(), True),
         StructField("customer_first_name", StringType(), True),
         StructField("customer_last_name", StringType(), True),
-        StructField("cost", IntegerType(), True),
+        StructField("cost", LongType(), True),
         StructField("start_date", DateType(), True),
         StructField("end_date", DateType(), True),
-        StructField("numberOfChannels", LongType(), False),
+        StructField("numberOfChannels", LongType(), True),
         StructField("extras", MapType(StringType(), StringType(), valueContainsNull = True), nullable = True),
         StructField("date", DateType(), True)
     ])
@@ -92,12 +93,12 @@ def enriched_data_schema_registers():
 @pytest.fixture(scope="session")
 def data_schema_snapshot():
     schema = StructType([
-        StructField("id", IntegerType(), True),
+        StructField("id", LongType(), True),
         StructField("active", BooleanType(), True),
         StructField("subscription", StringType(), True),
         StructField("customer_first_name", StringType(), True),
         StructField("customer_last_name", StringType(), True),
-        StructField("cost", IntegerType(), True),
+        StructField("cost", LongType(), True),
         StructField("start_date", DateType(), True),
         StructField("end_date", DateType(), True),
         StructField("numberOfChannels", LongType(), False),
@@ -323,13 +324,34 @@ def test_snapshots_dir(test_dir,test_snapshot1,test_snapshot2):
 
     return temp_dir
 
+@pytest.fixture(scope="session")
+def test_snapshots_to_update(test_dir,test_snapshot1,test_snapshot2):
+    tmpdir = test_dir
+    temp_dir = f"{tmpdir}/snapshots_upt"
+
+    test_snapshot1.write.mode('overwrite').format('parquet').save(temp_dir+'/date=2023-04-09')
+
+    return temp_dir
+
+@pytest.fixture(scope="session")
+def test_snapshots_empity(test_dir,test_snapshot1,test_snapshot2):
+    tmpdir = test_dir
+    temp_dir = f"{tmpdir}/snapshots_empity"
+
+    test_snapshot1.write.mode('overwrite').format('parquet').save(temp_dir+'/date=2023-04-09')
+
+    return temp_dir
+
+
 def test_getMaxDateSnapshots(spark_session, test_snapshots_dir):
     MaxDateSnapshots = getMaxDateSnapshots(test_snapshots_dir,spark_session)
 
     assert MaxDateSnapshots == datetime.strptime('2023-04-10', '%Y-%m-%d').date()
 
 def test_readMaxDateSnapshoots(test_snapshots_dir,spark_session,test_snapshot2):
-    snapshots = readMaxDateSnapshoots(test_snapshots_dir,datetime.strptime('2023-04-10', '%Y-%m-%d').date() , spark_session)
+    maxDateSnapshoots = datetime.strptime('2023-04-10', '%Y-%m-%d').date()
+    snapshots = readMaxDateSnapshoots(test_snapshots_dir, maxDateSnapshoots, spark_session)
+    snapshots = snapshots.drop('date')
 
     assert snapshots.collect() == test_snapshot2.collect()
 
@@ -356,8 +378,28 @@ def test_enrichNewRegisters(test_subscriptions,spark_session,test_registers_dir,
 
     assert df1.exceptAll(df2).count() == 0 
 
-def test_joinData(test_snapshot2,test_enriched_registers,data_schema_snapshot):
-    data = joinData(test_snapshot2,test_enriched_registers)
+def test_joinData(test_enriched_registers,enriched_data_schema_registers,spark_session,test_snapshots_dir):
+    maxDateSnapshoots = getMaxDateSnapshots(test_snapshots_dir,spark_session)
+    snapshot = readMaxDateSnapshoots(test_snapshots_dir, maxDateSnapshoots, spark_session)
 
-    assert data.schema == data_schema_snapshot
-    assert data.count() == test_snapshot2.count() + test_enriched_registers.count()
+    data = joinData(snapshot,test_enriched_registers)
+
+    assert data.schema == enriched_data_schema_registers
+    assert data.count() == snapshot.count() + test_enriched_registers.count()
+
+def test_createNewSnapshot(test_snapshot2,test_enriched_registers,spark_session, test_registers_dir,test_snapshots_dir):
+    maxDateSnapshoots = datetime.strptime('2023-04-09', '%Y-%m-%d').date()
+    snapshot = readMaxDateSnapshoots(test_snapshots_dir, maxDateSnapshoots, spark_session)
+
+    data = joinData(snapshot,test_enriched_registers)
+    dateData,_ = getMaxDateRegisters(test_registers_dir,spark_session)
+
+    createNewSnapshot(data,dateData,test_snapshots_dir)
+    dfsnapshots = spark_session.read.parquet(test_snapshots_dir+'/date={}'.format(dateData.strftime("%Y-%m-%d")))
+
+    df1 = dfsnapshots.withColumn("extras", F.to_json("extras"))
+    df1.show()
+    df2 = test_snapshot2.withColumn("extras", F.to_json("extras"))
+    df2.show()
+    
+    assert df1.exceptAll(df2).count() == 0 

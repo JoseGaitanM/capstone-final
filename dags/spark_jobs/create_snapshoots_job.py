@@ -3,28 +3,28 @@ from datetime import date, timedelta
 from pyspark.sql.functions import max, col, lit, row_number
 import os
 from pyspark.sql.window import Window
-from pyspark.sql.types import StructType, StructField, IntegerType, BooleanType, StringType, DateType, LongType, MapType
-from pyspark.sql.functions import col
+from pyspark.sql.types import StructType, StructField, LongType, BooleanType, StringType, DateType, LongType, MapType
+from pyspark.sql.functions import col,lit
 
 SCHEMA_REGISTERS_READ = StructType([
-        StructField("id", IntegerType(), True),
+        StructField("id", LongType(), True),
         StructField("active", BooleanType(), True),
         StructField("subscription", StringType(), True),
         StructField("customer_first_name", StringType(), True),
         StructField("customer_last_name", StringType(), True),
-        StructField("cost", IntegerType(), True),
+        StructField("cost", LongType(), True),
         StructField("start_date", DateType(), True),
         StructField("end_date", DateType(), True),
         StructField("date", DateType(), True)
     ])
 
 SCHEMA_REGISTERS_ENRICHED = StructType([
-    StructField("id", IntegerType(), True),
+    StructField("id", LongType(), True),
     StructField("active", BooleanType(), True),
     StructField("subscription", StringType(), True),
     StructField("customer_first_name", StringType(), True),
     StructField("customer_last_name", StringType(), True),
-    StructField("cost", IntegerType(), True),
+    StructField("cost", LongType(), True),
     StructField("start_date", DateType(), True),
     StructField("end_date", DateType(), True),
     StructField("numberOfChannels", LongType(), True),
@@ -46,9 +46,7 @@ def getMaxDateSnapshots(path,spark):
 
 def readMaxDateSnapshoots(path,maxDatesnapshots,spark):
   snapshoot = spark.read.parquet(f'{path}/date={maxDatesnapshots.strftime("%Y-%m-%d")}')
-  snapshoot.show(n=1000, truncate=False)
-  snapshoot.drop('date')
-
+  snapshoot.show()
   return snapshoot
 
 def getSubscriptions(path,spark):
@@ -59,7 +57,7 @@ def getSubscriptions(path,spark):
 
 
 def getMaxDateRegisters(path,spark):
-  registers = spark.read.schema(SCHEMA_REGISTERS_READ).json(path)
+  registers = spark.read.json(path)
   registers.show(n=1000, truncate=False)
 
   distinct_dates = registers.select("date").distinct()
@@ -76,23 +74,26 @@ def enrichNewRegisters(subscriptions,maxDatesnapshots,spark,path):
 
   joined = registers.join(subscriptions, ['subscription'])
   joined = joined.select('id',"active","subscription","customer_first_name","customer_last_name","cost","start_date","end_date","numberOfChannels","extras","date").orderBy("id")
+  joined.show()
 
   return joined
 
 def joinData(snapshots,joined):
-  joined = joined.drop('date')
-
-  return snapshots.union(joined)
+  snapshots.show()
+  result = snapshots.union(joined)
+  result.show()
+  return result
   
-def createNewSnapshot(data,dateData):
+def createNewSnapshot(data,dateData,path):
   result = (data
                 .withColumn("rowNumber", row_number().over(Window.partitionBy(col("id")).orderBy(col("date").desc())))
                 .where(col("rowNumber") == lit(1))
                 .drop("rowNumber"))
   
   result.show(n=1000, truncate=False)
-  result.write.mode("overwrite").parquet(f'/opt/airflow/data/files/snapshots/date={dateData.strftime("%Y-%m-%d")}')
-  
+
+  result = result.drop('date')
+  result.write.mode("overwrite").format('parquet').save(f'{path}/date={dateData.strftime("%Y-%m-%d")}')
   return result
 
 def enrichData(registers,subscription):
@@ -137,7 +138,7 @@ def main():
 
 
                 ###create new snapshoot
-                createNewSnapshot(latestData,dateData)
+                createNewSnapshot(latestData,dateData,snapshotsPath)
             else:
                 print('snapshots Up to date')
 
@@ -157,7 +158,7 @@ def main():
             joined = enrichData(registers,subscriptions)
 
             ###create new snapshoot
-            createNewSnapshot(joined,dateData)
+            createNewSnapshot(joined,dateData,snapshotsPath)
 
 if __name__ == "__main__":
     main()
