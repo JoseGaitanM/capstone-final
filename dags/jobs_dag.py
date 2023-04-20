@@ -37,7 +37,7 @@ def generateSuscriptions():
     print(df)
     pq.write_table(pa.Table.from_pandas(df), '/opt/airflow/data/files/subscription/subscriptions.parquet')
 
-with DAG('snapshots_dagss', default_args=default_args, schedule_interval=None) as dag:
+with DAG('snapshots_dag', default_args=default_args, schedule_interval=None) as dag:
     spark_job_task = SparkSubmitOperator(
         task_id='create_snapshoots',
         conn_id='spark_default',
