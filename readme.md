@@ -39,14 +39,14 @@
   <li>readMaxDateSnapshoots: Retrieves the most recent snapshot information</li>
   <li>getSubscriptions: Retrieve subscription information from a parquet file<li>
   <li>getMaxDateRegisters: Get the date of the most recent .json file with registers</li>
-  <li>enrichNewRegisters – Enriches records whose date is newer than the most recent snapshot</li>
+  <li>enrichNewRegisters: Enriches records whose date is newer than the most recent snapshot</li>
   <li>joinData: Performs the join between the new enriched records and the most recent snapshot information</li>
   <li>createNewSnapshot: Creates the new snapshot base in the new enriched records and the past snapshot</li>
 </ul>  
 <br><br>
 
 <h1>How to run</h1>
-<h2>Create a new images</h2>
+<h2>Create new images</h2>
 <p>docker build -f Dockerfile.Spark . -t spark-air</p>
 <p>docker build -f Dockerfile.Airflow . -t airflow-spark</p>
 <br><br>
@@ -59,7 +59,7 @@
 </ul>  
 <br><br>
 
-<h1>Connections spark</h1>
+<h1>Connection to spark</h1>
 <br><br>
 <img src="description/img4.png" width="40%">
 <br><br>
