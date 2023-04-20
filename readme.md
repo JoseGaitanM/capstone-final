@@ -37,7 +37,7 @@
 <ul>
   <li>getMaxDateSnapshots: Get the date of the most recent snapshot</li>
   <li>readMaxDateSnapshoots: Retrieves the most recent snapshot information</li>
-  <li>getSubscriptions: Retrieve subscription information from a parquet file<li>
+  <li>getSubscriptions: Retrieve subscription information from a parquet file</li>
   <li>getMaxDateRegisters: Get the date of the most recent .json file with registers</li>
   <li>enrichNewRegisters: Enriches records whose date is newer than the most recent snapshot</li>
   <li>joinData: Performs the join between the new enriched records and the most recent snapshot information</li>
